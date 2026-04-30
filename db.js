@@ -1,36 +1,17 @@
 const mysql = require('mysql2/promise');
 
 // Variables de entorno Railway + desarrollo local
-const DB_HOST = process.env.MYSQLHOST || process.env.DB_HOST || 'localhost';
-const DB_USER = process.env.MYSQLUSER || process.env.DB_USER || 'root';
-const DB_PASSWORD = process.env.MYSQLPASSWORD || process.env.DB_PASSWORD || '';
-const DB_NAME = process.env.MYSQLDATABASE || process.env.DB_NAME || 'mi_db';
-const DB_PORT = process.env.MYSQLPORT
-  ? Number(process.env.MYSQLPORT)
-  : (process.env.DB_PORT ? Number(process.env.DB_PORT) : 3306);
+const DB_HOST = process.env.MYSQLHOST || process.env.DB_HOST;
+const DB_USER = process.env.MYSQLUSER || process.env.DB_USER;
+const DB_PASSWORD = process.env.MYSQLPASSWORD || process.env.DB_PASSWORD;
+const DB_NAME = process.env.MYSQLDATABASE || process.env.DB_NAME;
+const DB_PORT = Number(process.env.MYSQLPORT || process.env.DB_PORT || 3306);
 
 let pool;
 
 async function initDb() {
-  // Railway normalmente ya crea la DB
-  // En local sí puede necesitar crearla
-  try {
-    const adminConnection = await mysql.createConnection({
-      host: DB_HOST,
-      user: DB_USER,
-      password: DB_PASSWORD,
-      port: DB_PORT
-    });
-
-    await adminConnection.query(`
-      CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\`
-      CHARACTER SET utf8mb4
-      COLLATE utf8mb4_unicode_ci
-    `);
-
-    await adminConnection.end();
-  } catch (error) {
-    console.log('La base de datos ya existe o Railway la administra automáticamente');
+  if (!DB_HOST || !DB_USER || !DB_NAME || !DB_PORT) {
+    throw new Error('Faltan variables de entorno para conectar a MySQL');
   }
 
   pool = mysql.createPool({
@@ -44,7 +25,6 @@ async function initDb() {
     queueLimit: 0
   });
 
-  // Crear tabla si no existe
   await pool.query(`
     CREATE TABLE IF NOT EXISTS usuarios (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -58,7 +38,6 @@ async function initDb() {
     )
   `);
 
-  // Insertar datos solo si la tabla está vacía
   const [rows] = await pool.query('SELECT COUNT(*) as total FROM usuarios');
 
   if (rows[0].total === 0) {
